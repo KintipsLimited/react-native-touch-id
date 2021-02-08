@@ -111,16 +111,22 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
     }
 
     // new
-    public void showPasscodeScreen() {
+    public void showPasscodeScreen(ReadableMap config) {
         final Activity activity = getCurrentActivity();
         if (activity == null) {
             return;
         }
 
-        KeyguardManager keyguardManager2 = getKeyguardManager();
-        Intent intent = keyguardManager2.createConfirmDeviceCredentialIntent("Screen lock", "Screen lock");
-        if (intent != null) {
-            activity.startActivityForResult(intent, 10001);
+        if (android.os.Build.VERSION.SDK_INT > 21) {
+            KeyguardManager keyguardManager2 = getKeyguardManager();
+            String promptMessage = "";
+            if (config.hasKey("title")) {
+                promptMessage = config.getString("title");
+            }
+            Intent intent = keyguardManager2.createConfirmDeviceCredentialIntent(promptMessage, null);
+            if (intent != null) {
+                activity.startActivityForResult(intent, 10001);
+            }
         }
     }
 
@@ -171,14 +177,11 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
             return;
         }
 
-
-        if (canAuthenticate !=  BiometricManager.BIOMETRIC_SUCCESS && isPasscodeAuthAvailable()) {
-            showPasscodeScreen();
-            inProgress = false;
-            return;
-        }
-
-        
+//        if (canAuthenticate !=  BiometricManager.BIOMETRIC_SUCCESS && isPasscodeAuthAvailable()) {
+//            showPasscodeScreen();
+//            inProgress = false;
+//            return;
+//        }
 
         /* FINGERPRINT ACTIVITY RELATED STUFF */
 //        final Cipher cipher = new FingerprintCipher().getCipher();
@@ -200,7 +203,8 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
 //        fingerprintDialog.setReasonForAuthentication(reason);
 //        fingerprintDialog.setAuthConfig(authConfig);
 //        fingerprintDialog.setDialogCallback(drh);
-        this.simplePrompt(authConfig, reactErrorCallback, reactSuccessCallback);
+//        this.simplePrompt(authConfig, reactErrorCallback, reactSuccessCallback);
+        showPasscodeScreen(authConfig);
         inProgress = false;
         return;
 
@@ -249,7 +253,7 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             ReactApplicationContext reactApplicationContext = getReactApplicationContext();
             BiometricManager biometricManager = BiometricManager.from(reactApplicationContext);
-            int canAuthenticate = biometricManager.canAuthenticate();
+            int canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
             return canAuthenticate;
         }
         return BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE;
@@ -276,7 +280,7 @@ public class FingerprintAuthModule extends ReactContextBaseJavaModule implements
                                 Executor executor = Executors.newSingleThreadExecutor();
                                 BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor, authCallback);
                                 PromptInfo promptInfo = new PromptInfo.Builder()
-                                        .setDeviceCredentialAllowed(true)
+                                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                                         .setTitle(promptMessage)
                                         .build();
                                 biometricPrompt.authenticate(promptInfo);
